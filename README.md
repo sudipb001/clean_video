@@ -1,4 +1,4 @@
-# Different Python based programs for command line video editiong
+# Different Python based programs for command line video editing
 
 Install Python packages
 pip install opencv-python numpy tqdm opencv-contrib-python
