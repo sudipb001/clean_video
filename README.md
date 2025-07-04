@@ -13,6 +13,9 @@ Download from https://ffmpeg.org/download.html
 Linux:
 sudo apt update && sudo apt install ffmpeg
 
+Install dependencies first for clean_video.py
+python clean_video.py --install-deps
+
 Recreating the Environment:
 List the packages in your current environment: pip freeze > requirements.txt.
 Create a new virtual environment: python -m venv <new_env_name>.
