@@ -4,6 +4,15 @@ Advanced Audio Enhancement Tool for Videos
 Provides real-world audio improvements including noise reduction, voice enhancement,
 dynamic range processing, and professional audio normalization.
 
+# Smart audio analysis → Adaptive processing
+1. 📊 Audio analysis (noise level, speech content, dynamics)
+2. 🔇 Advanced noise reduction (spectral subtraction + Wiener filtering)
+3. ⚡ Electrical hum removal (50/60Hz + harmonics)
+4. 🎤 Voice frequency enhancement (fundamental + formants + presence)
+5. 🎚️  Dynamic range compression (smooth attack/release)
+6. 🔉 De-essing (sibilance reduction)
+7. 🔊 Professional loudness normalization (LUFS-based)
+
 Usage: python audio_enhance.py input_video.mp4 [options]
 
 # Install dependencies first
@@ -29,6 +38,15 @@ python audio_enhance.py video.mp4 --info
 
 # Minimal processing (just noise reduction)
 python audio_enhance.py video.mp4 --noise 0.2 --no-compression --no-deess
+"""
+
+#!/usr/bin/env python3
+"""
+Advanced Audio Enhancement Tool for Videos
+Provides real-world audio improvements including noise reduction, voice enhancement,
+dynamic range processing, and professional audio normalization.
+
+Usage: python audio_enhance.py input_video.mp4 [options]
 """
 
 import os
@@ -325,7 +343,7 @@ class AdvancedAudioEnhancer:
 
         return processed
 
-    def apply_soft_compression(self, audio, ratio=3.0, threshold_db=-20, attack_ms=5, release_ms=50):
+    def apply_soft_compression(self, audio, sr, ratio=3.0, threshold_db=-20, attack_ms=5, release_ms=50):
         """Apply dynamic range compression with smooth attack/release."""
         if not self.config['dynamic_compression']:
             return audio
