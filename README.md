@@ -13,7 +13,7 @@ Download from https://ffmpeg.org/download.html
 Linux:
 sudo apt update && sudo apt install ffmpeg
 
-Install dependencies first for clean_video.py
+Install dependencies first for clean_video.py:
 python clean_video.py --install-deps
 
 Recreating the Environment:
