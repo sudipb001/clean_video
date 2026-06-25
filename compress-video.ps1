@@ -10,7 +10,7 @@ param(
     [int]$CRF = 23,
 
     [ValidateSet("ultrafast","superfast","veryfast","faster","fast","medium","slow","slower","veryslow")]
-    [string]$Preset = "medium",
+    [string]$Preset = "veryfast",
 
     [double]$TargetSizeMB,
 
@@ -79,6 +79,7 @@ if ($TargetSizeMB) {
         ffmpeg -y -i $InputPath `
                -c:v $VideoCodec `
                -b:v $VideoBitrate `
+             -preset $Preset `
                -pass 1 `
                -an `
                -f mp4 NUL
@@ -86,6 +87,7 @@ if ($TargetSizeMB) {
         ffmpeg -i $InputPath `
                -c:v $VideoCodec `
                -b:v $VideoBitrate `
+             -preset $Preset `
                -pass 2 `
                -c:a aac `
                -b:a 128k `
@@ -99,6 +101,7 @@ if ($TargetSizeMB) {
         ffmpeg -i $InputPath `
                -c:v $VideoCodec `
                -b:v $VideoBitrate `
+             -preset $Preset `
                -c:a aac `
                -b:a 128k `
                -movflags +faststart `
