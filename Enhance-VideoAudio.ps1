@@ -63,7 +63,7 @@ function Write-Step {
     Write-Host "[Step $Number/$Total] $Text" -ForegroundColor Yellow
 }
 
-function Get-VideoDuration {
+function Get-MediaDuration {
     param([string]$FilePath)
     try {
         $out = & ffprobe -v error -show_entries format=duration `
@@ -128,7 +128,7 @@ function Extract-Audio {
     param([string]$VideoPath)
 
     $tmpWav  = [System.IO.Path]::ChangeExtension([System.IO.Path]::GetTempFileName(), ".wav")
-    $duration = Get-VideoDuration -FilePath $VideoPath
+    $duration = Get-MediaDuration -FilePath $VideoPath
 
     Write-Host "  Temp WAV : $tmpWav" -ForegroundColor Gray
     Write-Host "  Duration : $duration s" -ForegroundColor Gray
@@ -153,60 +153,73 @@ function Extract-Audio {
 function Enhance-AudioFFmpeg {
     param(
         [string]$AudioPath,
-        [bool]$ApplyEchoCancel,
         [bool]$ApplyNoiseReduction
     )
 
-    $tmpOut  = [System.IO.Path]::ChangeExtension([System.IO.Path]::GetTempFileName(), "_enhanced.wav")
+    $tmpOut = [System.IO.Path]::ChangeExtension(
+        [System.IO.Path]::GetTempFileName(),
+        "_enhanced.wav"
+    )
 
     $filters = [System.Collections.Generic.List[string]]::new()
 
-    # Remove low-frequency rumble
+    # Remove low-frequency rumble (fan noise, table vibration, mic handling noise)
     $filters.Add("highpass=f=70")
 
     # Remove excessive high-frequency hiss
     $filters.Add("lowpass=f=10000")
 
-    # Gentle noise reduction
+    # Gentle broadband noise reduction
     if ($ApplyNoiseReduction) {
         $filters.Add("afftdn=nr=10:nf=-30")
     }
 
-    # Very gentle noise gate
-    $filters.Add("agate=threshold=0.01:ratio=2:attack=20:release=250")
+    # Very gentle noise gate to suppress room noise
+    $filters.Add("agate=threshold=0.005:ratio=1.5:attack=20:release=300")
 
-    # Presence boost for speech clarity
+    # Add presence and speech clarity
     $filters.Add("equalizer=f=2500:width_type=h:width=1500:g=2")
 
-    # Slight reduction of muddy frequencies (important for deep voices)
+    # Reduce muddiness in deep male voices
     $filters.Add("equalizer=f=180:width_type=h:width=120:g=-2")
 
-    # Moderate compression suitable for tutorials
-    $filters.Add("acompressor=threshold=-18dB:ratio=2:attack=20:release=200:makeup=1")
+    # Gentle dynamic compression for consistent volume
+    $filters.Add(
+        "acompressor=threshold=-20dB:ratio=1.8:attack=30:release=250:makeup=1"
+    )
 
-    # Loudness normalization
-    $filters.Add("loudnorm=I=-16:TP=-1.5:LRA=7")
+    # Normalize loudness for YouTube/Udemy tutorials
+    $filters.Add("loudnorm=I=-16:TP=-1.5:LRA=11")
 
     $chain = $filters -join ","
+
     Write-Host "  Filter chain: $chain" -ForegroundColor Gray
 
-    # loudnorm needs two passes for accurate results; get stats from pass 1
-    Write-Host "  Pass 1/2 - measuring loudness..." -ForegroundColor Gray
-    $pass1Args = @(
-        "-y", "-i", "`"$AudioPath`"",
+    $args = @(
+        "-y",
+        "-i", "`"$AudioPath`"",
         "-af", "`"$chain`"",
-        "-ar", "44100", "-acodec", "pcm_s16le",
+        "-ar", "44100",
+        "-acodec", "pcm_s16le",
         "`"$tmpOut`""
     )
 
-    $duration = Get-VideoDuration -FilePath $AudioPath
-    $code = Invoke-FFmpeg -Arguments $pass1Args -Activity "Enhancing audio" -DurationSeconds $duration
+    $duration = Get-MediaDuration -FilePath $AudioPath
 
-    if ($code -ne 0) { throw "Audio enhancement failed (FFmpeg exit code: $code)." }
+    $code = Invoke-FFmpeg `
+        -Arguments $args `
+        -Activity "Enhancing audio" `
+        -DurationSeconds $duration
+
+    if ($code -ne 0) {
+        throw "Audio enhancement failed (FFmpeg exit code: $code)."
+    }
 
     Write-Host "  Audio enhanced successfully." -ForegroundColor Green
+
     return $tmpOut
 }
+
 
 # ─── Step 2b: Enhance via Python script ──────────────────────────────────────
 
@@ -240,7 +253,7 @@ function Merge-AudioVideo {
         [string]$OutputPath
     )
 
-    $duration = Get-VideoDuration -FilePath $VideoPath
+    $duration = Get-MediaDuration -FilePath $VideoPath
     Write-Host "  Output: $OutputPath" -ForegroundColor Gray
 
     $args = @(
@@ -289,9 +302,9 @@ Write-Host "  Input : $InputVideo"
 Write-Host "  Output: $OutputVideo"
 Write-Host ""
 Write-Host "  Settings:" -ForegroundColor White
-Write-Host "    Noise Reduction  : $(if ($NoNoiseReduction) { 'DISABLED' } else { 'ENABLED' })"
-Write-Host "    Echo Cancellation: $(if ($NoEchoCancel)     { 'DISABLED' } else { 'ENABLED' })"
-Write-Host "    Mode             : $(if ($UsePython)        { 'Python' } else { 'FFmpeg filters' })"
+Write-Host "    Noise Reduction : $(if ($NoNoiseReduction) { 'DISABLED' } else { 'ENABLED' })"
+Write-Host "    Mode            : $(if ($UsePython) { 'Python' } else { 'FFmpeg filters' })"
+
 
 Write-Step -Number 0 -Total 3 -Text "Checking dependencies"
 Test-FFmpeg
@@ -309,8 +322,7 @@ try {
         $enhancedWav = Enhance-AudioPython -AudioPath $tempWav -ApplyEchoCancel (-not $NoEchoCancel)
     } else {
         $enhancedWav = Enhance-AudioFFmpeg `
-            -AudioPath           $tempWav `
-            -ApplyEchoCancel     (-not $NoEchoCancel) `
+            -AudioPath $tempWav `
             -ApplyNoiseReduction (-not $NoNoiseReduction)
     }
     $tempFiles.Add($enhancedWav)
@@ -325,12 +337,15 @@ try {
     Write-Host "  Output: $OutputVideo" -ForegroundColor Green
     Write-Host ""
     Write-Host "  Improvements applied:" -ForegroundColor White
-    if (-not $NoNoiseReduction) { Write-Host "    [+] Noise reduction (FFT denoiser + noise gate)" }
-    if (-not $NoEchoCancel)     { Write-Host "    [+] Echo and room reverb reduction" }
-    Write-Host "    [+] High-pass and low-pass frequency filtering"
-    Write-Host "    [+] Voice-presence EQ boost (1 kHz and 3 kHz)"
-    Write-Host "    [+] Dynamic range compression"
-    Write-Host "    [+] Loudness normalisation (EBU R128 -14 LUFS)"
+    if (-not $NoNoiseReduction) {
+        Write-Host "    [+] Noise reduction (FFT denoiser + noise gate)"
+    }
+    Write-Host "    [+] Low-frequency rumble removal"
+    Write-Host "    [+] High-frequency hiss reduction"
+    Write-Host "    [+] Speech clarity enhancement"
+    Write-Host "    [+] Deep voice mud reduction"
+    Write-Host "    [+] Gentle dynamic range compression"
+    Write-Host "    [+] Loudness normalization (-16 LUFS)"
     Write-Host ""
 
 } catch {
