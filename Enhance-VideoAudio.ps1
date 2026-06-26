@@ -161,6 +161,22 @@ function Enhance-AudioFFmpeg {
         "_enhanced.wav"
     )
 
+    # $filters = [System.Collections.Generic.List[string]]::new()
+
+    # $filters.Add("highpass=f=50")
+
+    # if ($ApplyNoiseReduction) {
+    #     $filters.Add("afftdn=nr=8:nf=-28")
+    # }
+
+    # $filters.Add("equalizer=f=2800:width_type=h:width=1800:g=1.5")
+
+    # $filters.Add(
+    #     "acompressor=threshold=-20dB:ratio=1.5:attack=30:release=250"
+    # )
+
+    # $filters.Add("loudnorm=I=-16:TP=-1.5:LRA=11")    
+
     $filters = [System.Collections.Generic.List[string]]::new()
 
     # Remove low-frequency rumble (fan noise, table vibration, mic handling noise)
