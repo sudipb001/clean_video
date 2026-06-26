@@ -160,15 +160,32 @@ function Enhance-AudioFFmpeg {
     $tmpOut  = [System.IO.Path]::ChangeExtension([System.IO.Path]::GetTempFileName(), "_enhanced.wav")
 
     $filters = [System.Collections.Generic.List[string]]::new()
-    $filters.Add("highpass=f=80")
-    $filters.Add("lowpass=f=12000")
-    if ($ApplyNoiseReduction) { $filters.Add("afftdn=nr=20:nf=-25:nt=w") }
-    if ($ApplyEchoCancel)     { $filters.Add("aecho=0.8:0.88:60:0.4") }
-    $filters.Add("agate=threshold=0.02:ratio=4:attack=10:release=200")
-    $filters.Add("equalizer=f=1000:width_type=o:width=2:g=2")
-    $filters.Add("equalizer=f=3000:width_type=o:width=2:g=3")
-    $filters.Add("acompressor=threshold=0.089:ratio=4:attack=200:release=1000:makeup=2")
-    $filters.Add("loudnorm=I=-14:TP=-1.5:LRA=11")
+
+    # Remove low-frequency rumble
+    $filters.Add("highpass=f=70")
+
+    # Remove excessive high-frequency hiss
+    $filters.Add("lowpass=f=10000")
+
+    # Gentle noise reduction
+    if ($ApplyNoiseReduction) {
+        $filters.Add("afftdn=nr=10:nf=-30")
+    }
+
+    # Very gentle noise gate
+    $filters.Add("agate=threshold=0.01:ratio=2:attack=20:release=250")
+
+    # Presence boost for speech clarity
+    $filters.Add("equalizer=f=2500:width_type=h:width=1500:g=2")
+
+    # Slight reduction of muddy frequencies (important for deep voices)
+    $filters.Add("equalizer=f=180:width_type=h:width=120:g=-2")
+
+    # Moderate compression suitable for tutorials
+    $filters.Add("acompressor=threshold=-18dB:ratio=2:attack=20:release=200:makeup=1")
+
+    # Loudness normalization
+    $filters.Add("loudnorm=I=-16:TP=-1.5:LRA=7")
 
     $chain = $filters -join ","
     Write-Host "  Filter chain: $chain" -ForegroundColor Gray
